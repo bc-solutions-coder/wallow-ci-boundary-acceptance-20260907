@@ -1,0 +1,33 @@
+name: Boundary acceptance
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  required:
+    name: CI / required
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify ordinary job cannot read environment secret
+        env:
+          CANARY: ${{ secrets.BOUNDARY_CANARY }}
+        run: test -z "$CANARY"
+      - name: Exercise fixture behavior
+        run: test ! -f FAIL
+  main-canary:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          CANARY: ${{ secrets.BOUNDARY_CANARY }}
+        run: test -n "$CANARY"
+  forbidden-canary:
+    if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'ERROR environment policy allowed forbidden ref'; exit 1
